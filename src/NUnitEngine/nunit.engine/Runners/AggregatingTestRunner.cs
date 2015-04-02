@@ -68,6 +68,8 @@ namespace NUnit.Engine.Runners
         protected override TestEngineResult LoadPackage()
         {
             var results = new List<TestEngineResult>();
+            var workerPool = new ParallelTaskWorkerPool(GetLevelOfParallelism());
+            var tasks = new List<TestEngineLoaderTask>();
 
             foreach (var subPackage in TestPackage.SubPackages)
             {
@@ -76,7 +78,18 @@ namespace NUnit.Engine.Runners
 
                 var runner = CreateRunner(subPackage);
                 _runners.Add(runner);
-                results.Add(runner.Load());
+                
+                var task = new TestEngineLoaderTask(runner);
+                tasks.Add(task);
+                workerPool.Enqueue(task);
+            }
+
+            workerPool.Start();
+            workerPool.WaitAll();
+
+            foreach (var task in tasks)
+            {
+                results.Add(task.Result());
             }
 
             return ResultHelper.Merge(results);
@@ -121,11 +134,25 @@ namespace NUnit.Engine.Runners
 
             bool disposeRunners = TestPackage.GetSetting(PackageSettings.DisposeRunners, false);
 
+            var workerPool = new ParallelTaskWorkerPool(GetLevelOfParallelism());
+            var tasks = new List<TestEngineRunnerTask>();
+
             foreach (ITestEngineRunner runner in _runners)
             {
-                results.Add(runner.Run(listener, filter));
-                if (disposeRunners) runner.Dispose();
+                var task = new TestEngineRunnerTask(runner, listener, filter);
+                tasks.Add(task);
+                workerPool.Enqueue(task);
             }
+
+            workerPool.Start();
+            workerPool.WaitAll();
+
+            foreach (var task in tasks)
+            {
+                results.Add(task.Result());
+                if (disposeRunners) task.Dispose();
+            }
+
             if (disposeRunners) _runners.Clear();
 
             TestEngineResult result = ResultHelper.Merge(results);
@@ -166,6 +193,11 @@ namespace NUnit.Engine.Runners
         protected virtual ITestEngineRunner CreateRunner(TestPackage package)
         {
             return TestRunnerFactory.MakeTestRunner(package);
+        }
+
+        protected virtual int GetLevelOfParallelism()
+        {
+            return 1;
         }
     }
 }
