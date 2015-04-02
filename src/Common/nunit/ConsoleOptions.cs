@@ -48,6 +48,7 @@ namespace NUnit.Common
             TeamCity = defaultOptionsProvider.TeamCity;
             
             ConfigureOptions();            
+
             if (args != null)
                 Parse(args);
         }
@@ -313,7 +314,7 @@ namespace NUnit.Common
 
             // Where to Run Tests
             this.Add("process=", "{PROCESS} isolation for test assemblies.\nValues: Single, Separate, Multiple. If not specified, defaults to Separate for a single assembly or Multiple for more than one.",
-                v => ProcessModel = RequiredValue(v, "--process", "Single", "Separate", "Multiple"));
+                v => ProcessModel = RequiredValue(v, "--process", "Single", "Separate", "Multiple", "Parallel"));
 
             this.Add("domain=", "{DOMAIN} isolation for test assemblies.\nValues: None, Single, Multiple. If not specified, defaults to Single for a single assembly or Multiple for more than one.",
                 v => DomainUsage = RequiredValue(v, "--domain", "None", "Single", "Multiple"));
